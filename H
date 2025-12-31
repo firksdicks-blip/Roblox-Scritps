@@ -1,0 +1,56 @@
+-- MULTI-SPOT TELEPORT MENU
+
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+-- ===== EDIT TELEPORT SPOTS HERE =====
+local Teleports = {
+    ["Map Center"] = Vector3.new(0, 10, 0),
+    ["Base"] = Vector3.new(120, 10, -80),
+    ["Shop"] = Vector3.new(-200, 10, 90),
+    ["Secret"] = Vector3.new(60, 25, 220)
+}
+-- ===================================
+
+-- GUI
+local gui = Instance.new("ScreenGui")
+gui.Name = "MultiTP"
+gui.Parent = player:WaitForChild("PlayerGui")
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 220, 0, 50 + (#Teleports * 45))
+frame.Position = UDim2.new(0.05, 0, 0.35, 0)
+frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+frame.Parent = gui
+frame.Active = true
+frame.Draggable = true
+
+local layout = Instance.new("UIListLayout", frame)
+layout.Padding = UDim.new(0, 6)
+layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -10, 0, 40)
+title.Text = "Teleport Menu"
+title.TextColor3 = Color3.new(1,1,1)
+title.BackgroundTransparency = 1
+title.Font = Enum.Font.SourceSansBold
+title.TextScaled = true
+title.Parent = frame
+
+-- TP function
+local function TP(pos)
+    local char = player.Character or player.CharacterAdded:Wait()
+    local hrp = char:WaitForChild("HumanoidRootPart")
+    hrp.CFrame = CFrame.new(pos)
+end
+
+-- Buttons
+for name, pos in pairs(Teleports) do
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, -20, 0, 40)
+    btn.Text = name
+    btn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+    btn.TextColor3 = Color3.new(1,1,1)
+    btn.Font = Enum.Font.SourceSansBold
+    btn.Text
