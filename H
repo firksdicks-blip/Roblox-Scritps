@@ -53,4 +53,10 @@ for name, pos in pairs(Teleports) do
     btn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
     btn.TextColor3 = Color3.new(1,1,1)
     btn.Font = Enum.Font.SourceSansBold
-    btn.Text
+    btn.TextScaled = true
+    btn.Parent = frame
+
+    btn.MouseButton1Click:Connect(function()
+        TP(pos)
+    end)
+end
