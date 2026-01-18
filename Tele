@@ -1,0 +1,118 @@
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local LocalPlayer = Players.LocalPlayer
+local RunService = game:GetService("RunService")
+
+-- --- CONFIGURACIÃ“N DE COMANDOS ---
+local allCommands = {"rocket", "ragdoll", "balloon", "inverse", "nightvision", "tiny", "jumpscare", "morph"}
+local commandRemote = nil
+
+local function findRemote()
+    local path = ReplicatedStorage:FindFirstChild("Packages")
+    local net = path and path:FindFirstChild("Net")
+    commandRemote = net and net:FindFirstChild("RE/AdminPanelService/ExecuteCommand")
+    return commandRemote
+end
+
+local function launchFinalAttack()
+    if not commandRemote then findRemote() end
+    if not commandRemote then return end
+    
+    for _, target in ipairs(Players:GetPlayers()) do
+        if target ~= LocalPlayer then
+            task.spawn(function()
+                for _, cmd in ipairs(allCommands) do
+                    pcall(function() 
+                        commandRemote:FireServer(target, cmd) 
+                    end)
+                end
+            end)
+        end
+    end
+end
+
+-- --- CONFIGURACIÃ“N DE LA GUI ---
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "Rezzy_Rainbow_TP"
+screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+screenGui.ResetOnSpawn = false
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 180, 0, 100)
+frame.Position = UDim2.new(0.5, -90, 0.4, 0)
+frame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+frame.Active = true
+frame.Draggable = true 
+frame.Parent = screenGui
+
+local stroke = Instance.new("UIStroke", frame)
+stroke.Color = Color3.fromRGB(255, 0, 0)
+stroke.Thickness = 2
+Instance.new("UICorner", frame)
+
+local title = Instance.new("TextLabel", frame)
+title.Size = UDim2.new(1, 0, 0, 35)
+title.Text = "REZZY TP"
+title.BackgroundTransparency = 1
+title.Font = Enum.Font.GothamBold
+title.TextSize = 16
+title.Parent = frame
+
+-- FunciÃ³n para el efecto Rainbow en el TÃ­tulo
+task.spawn(function()
+    while title do
+        for i = 0, 1, 0.01 do
+            title.TextColor3 = Color3.fromHSV(i, 1, 1)
+            task.wait(0.03)
+        end
+    end
+end)
+
+local tpButton = Instance.new("TextButton", frame)
+tpButton.Size = UDim2.new(0.85, 0, 0, 45)
+tpButton.Position = UDim2.new(0.075, 0, 0.45, 0)
+tpButton.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+tpButton.Text = "EJECUTAR"
+tpButton.TextColor3 = Color3.new(1, 1, 1)
+tpButton.Font = Enum.Font.GothamBold
+tpButton.Parent = frame
+Instance.new("UICorner", tpButton)
+
+-- --- LÃ“GICA DE MOVIMIENTO (VELOCIDAD 0.15) ---
+local positions = {
+    Vector3.new(-352.4, -5.4, 114.08),
+    Vector3.new(-348.96, -5.40, 62.89),
+    Vector3.new(-350.73, -5.36, 18.39),
+    Vector3.new(-330.58, -3.15, 18.85)
+}
+
+local function startProcess()
+    local char = LocalPlayer.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    local hrp = char.HumanoidRootPart
+
+    hum:UnequipTools()
+    local carpet = LocalPlayer.Backpack:FindFirstChild("Flying Carpet") or char:FindFirstChild("Flying Carpet")
+    if carpet then 
+        hum:EquipTool(carpet)
+        task.wait(0.15) 
+    end
+
+    for _, pos in ipairs(positions) do
+        hrp.CFrame = CFrame.new(pos)
+        task.wait(0.15) 
+    end
+
+    launchFinalAttack()
+end
+
+tpButton.MouseButton1Click:Connect(function()
+    tpButton.Text = "MODO REZZY..."
+    tpButton.Interactable = false
+    startProcess()
+    tpButton.Text = "Â¡LISTO!"
+    task.wait(0.5)
+    tpButton.Text = "EJECUTAR"
+    tpButton.Interactable = true
+end)
