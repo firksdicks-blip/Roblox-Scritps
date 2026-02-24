@@ -1,0 +1,52 @@
+-- ETFB Trading Hub Fullscreen Image Popup
+-- Delta Executor Compatible
+
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "ETFB_GUI"
+gui.ResetOnSpawn = false
+gui.IgnoreGuiInset = true
+gui.Parent = player:WaitForChild("PlayerGui")
+
+-- Background
+local bg = Instance.new("Frame")
+bg.Parent = gui
+bg.Size = UDim2.new(1,0,1,0)
+bg.BackgroundColor3 = Color3.fromRGB(0,0,0)
+bg.BackgroundTransparency = 0.25
+
+-- Image
+local img = Instance.new("ImageLabel")
+img.Parent = bg
+img.Size = UDim2.new(1,0,1,0)
+img.Position = UDim2.new(0,0,0,0)
+img.BackgroundTransparency = 1
+img.Image = "https://i.imgur.com/hmaZaTT.jpeg"
+img.ScaleType = Enum.ScaleType.Fit
+
+-- Fade in
+bg.BackgroundTransparency = 1
+for i = 1,10 do
+	bg.BackgroundTransparency = 1 - (i/10 * 0.75)
+	task.wait(0.03)
+end
+
+-- Close Button
+local close = Instance.new("TextButton")
+close.Parent = bg
+close.Size = UDim2.new(0,140,0,42)
+close.Position = UDim2.new(1,-160,0,20)
+close.Text = "CLOSE"
+close.BackgroundColor3 = Color3.fromRGB(10,10,10)
+close.TextColor3 = Color3.fromRGB(0,180,255)
+close.Font = Enum.Font.GothamBold
+close.TextSize = 16
+close.AutoButtonColor = true
+close.BorderSizePixel = 0
+close.BackgroundTransparency = 0.1
+
+close.MouseButton1Click:Connect(function()
+	gui:Destroy()
+end)
