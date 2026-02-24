@@ -1,0 +1,50 @@
+-- Black Screen Discord Invite Popup
+-- Delta Android Compatible
+
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+repeat task.wait() until player and player:FindFirstChild("PlayerGui")
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "BlackScreenLink"
+gui.IgnoreGuiInset = true
+gui.ResetOnSpawn = false
+gui.DisplayOrder = 999999
+gui.Parent = player.PlayerGui
+
+-- Background
+local bg = Instance.new("Frame")
+bg.Parent = gui
+bg.Size = UDim2.new(1,0,1,0)
+bg.BackgroundColor3 = Color3.fromRGB(0,0,0)
+bg.BackgroundTransparency = 0
+
+-- Center text
+local text = Instance.new("TextLabel")
+text.Parent = bg
+text.Size = UDim2.new(1,0,0,80)
+text.Position = UDim2.new(0,0,0.5,-40)
+text.BackgroundTransparency = 1
+text.Text = "https://discord.gg/Wr4XjYdfd"
+text.TextColor3 = Color3.fromRGB(0,170,255)
+text.Font = Enum.Font.GothamBold
+text.TextScaled = true
+text.TextWrapped = true
+
+-- Subtitle
+local sub = Instance.new("TextLabel")
+sub.Parent = bg
+sub.Size = UDim2.new(1,0,0,40)
+sub.Position = UDim2.new(0,0,0.5,45)
+sub.BackgroundTransparency = 1
+sub.Text = "JOIN THE DISCORD"
+sub.TextColor3 = Color3.fromRGB(200,200,200)
+sub.Font = Enum.Font.Gotham
+sub.TextScaled = true
+sub.TextWrapped = true
+
+-- Optional auto copy (mobile friendly)
+pcall(function()
+	setclipboard("https://discord.gg/Wr4XjYdfd")
+end)
