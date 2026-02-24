@@ -1,0 +1,82 @@
+-- ETFB Trading Hub LOCK SCREEN (FIXED)
+-- Delta Android Compatible
+
+local Players = game:GetService("Players")
+local ContentProvider = game:GetService("ContentProvider")
+local player = Players.LocalPlayer
+
+local IMAGE_URL = "https://i.imgur.com/hmaZaTT.jpeg"
+
+local function createGui()
+	if not player or not player:FindFirstChild("PlayerGui") then return end
+
+	-- prevent duplicates
+	if player.PlayerGui:FindFirstChild("ETFB_LOCK") then
+		return
+	end
+
+	local gui = Instance.new("ScreenGui")
+	gui.Name = "ETFB_LOCK"
+	gui.IgnoreGuiInset = true
+	gui.ResetOnSpawn = false
+	gui.DisplayOrder = 999999
+	gui.Parent = player.PlayerGui
+
+	-- Background
+	local bg = Instance.new("Frame")
+	bg.Parent = gui
+	bg.Size = UDim2.new(1,0,1,0)
+	bg.BackgroundColor3 = Color3.fromRGB(0,0,0)
+	bg.BackgroundTransparency = 0.1
+	bg.ZIndex = 999
+
+	-- Input blocker
+	local blocker = Instance.new("TextButton")
+	blocker.Parent = bg
+	blocker.Size = UDim2.new(1,0,1,0)
+	blocker.Text = ""
+	blocker.BackgroundTransparency = 1
+	blocker.ZIndex = 998
+	blocker.AutoButtonColor = false
+
+	-- Image
+	local img = Instance.new("ImageLabel")
+	img.Parent = bg
+	img.Size = UDim2.new(1,0,1,0)
+	img.Position = UDim2.new(0,0,0,0)
+	img.BackgroundTransparency = 1
+	img.Image = IMAGE_URL
+	img.ScaleType = Enum.ScaleType.Fit
+	img.ZIndex = 999
+
+	-- Preload image
+	pcall(function()
+		ContentProvider:PreloadAsync({img})
+	end)
+end
+
+-- Wait for player + GUI
+repeat task.wait() until game:IsLoaded()
+repeat task.wait() until Players.LocalPlayer
+repeat task.wait() until Players.LocalPlayer:FindFirstChild("PlayerGui")
+
+-- Create GUI
+createGui()
+
+-- Recreate on respawn
+player.CharacterAdded:Connect(function()
+	task.wait(1)
+	createGui()
+end)
+
+-- Anti-delete loop
+task.spawn(function()
+	while true do
+		task.wait(0.3)
+		if player and player:FindFirstChild("PlayerGui") then
+			if not player.PlayerGui:FindFirstChild("ETFB_LOCK") then
+				createGui()
+			end
+		end
+	end
+end)
