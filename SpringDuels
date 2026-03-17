@@ -1,0 +1,187 @@
+-- Spring Duels Hub 🌸 https://discord.gg/M8Yb2ntf6
+
+-- Get necessary Roblox services
+local RunService = game:GetService("RunService")
+local CoreGui = game:GetService("CoreGui")
+local Stats = game:GetService("Stats")
+local LocalPlayer = game:GetService("Players").LocalPlayer
+
+-- Get player character
+local Character = LocalPlayer.Character
+if not Character then return end
+
+-- Wait for HumanoidRootPart
+local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart", 5)
+if not HumanoidRootPart then return end
+
+-- Spin effect
+local BodyAngularVelocity = Instance.new("BodyAngularVelocity")
+BodyAngularVelocity.MaxTorque = Vector3.new(0, math.huge, 0)
+BodyAngularVelocity.AngularVelocity = Vector3.new(0, 25, 0)
+BodyAngularVelocity.Parent = HumanoidRootPart
+
+-- Respawn handling
+local Connection
+Connection = LocalPlayer.CharacterAdded:Connect(function(newCharacter)
+    local newRoot = newCharacter:WaitForChild("HumanoidRootPart", 5)
+    if not newRoot then return end
+    
+    if BodyAngularVelocity then 
+        BodyAngularVelocity:Destroy() 
+    end
+    
+    BodyAngularVelocity = Instance.new("BodyAngularVelocity")
+    BodyAngularVelocity.MaxTorque = Vector3.new(0, math.huge, 0)
+    BodyAngularVelocity.AngularVelocity = Vector3.new(0, 25, 0)
+    BodyAngularVelocity.Parent = newRoot
+end)
+
+-- Remove old GUI
+local existingGui = CoreGui:FindFirstChild("Spring_Duels_Hub")
+if existingGui then 
+    existingGui:Destroy() 
+end
+
+-- Create GUI
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Parent = CoreGui
+ScreenGui.Name = "Spring_Duels_Hub"
+ScreenGui.IgnoreGuiInset = true
+
+-- Top panel
+local TopFrame = Instance.new("Frame")
+TopFrame.Parent = ScreenGui
+TopFrame.Size = UDim2.new(0, 180, 0, 65)
+TopFrame.Position = UDim2.new(0.5, -90, 0, 35)
+TopFrame.BackgroundColor3 = Color3.fromRGB(20, 25, 20)
+TopFrame.BackgroundTransparency = 0.3
+
+Instance.new("UICorner").Parent = TopFrame
+
+local UIStroke = Instance.new("UIStroke")
+UIStroke.Parent = TopFrame
+UIStroke.Thickness = 2
+UIStroke.Color = Color3.fromRGB(120, 255, 120)
+
+-- Title
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Parent = TopFrame
+TitleLabel.Size = UDim2.new(1, 0, 0.35, 0)
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.Text = "SPRING DUELS 🌸"
+TitleLabel.Font = Enum.Font.GothamBlack
+TitleLabel.TextSize = 14
+
+-- Discord
+local DiscordLabel = Instance.new("TextLabel")
+DiscordLabel.Parent = TopFrame
+DiscordLabel.Size = UDim2.new(1, 0, 0.3, 0)
+DiscordLabel.Position = UDim2.new(0, 0, 0.35, 0)
+DiscordLabel.BackgroundTransparency = 1
+DiscordLabel.Text = "discord.gg/M8Yb2ntf6"
+DiscordLabel.Font = Enum.Font.GothamBold
+DiscordLabel.TextSize = 10
+
+-- Stats
+local StatsLabel = Instance.new("TextLabel")
+StatsLabel.Parent = TopFrame
+StatsLabel.Size = UDim2.new(1, 0, 0.35, 0)
+StatsLabel.Position = UDim2.new(0, 0, 0.65, 0)
+StatsLabel.BackgroundTransparency = 1
+StatsLabel.Font = Enum.Font.Code
+StatsLabel.TextSize = 9
+
+task.spawn(function()
+    while task.wait(0.5) do
+        local deltaTime = RunService.RenderStepped:Wait()
+        local fps = math.floor(1 / deltaTime)
+        local ping = Stats.Network.ServerStatsItem["Data Ping"]:GetValue()
+        ping = math.floor(ping)
+        StatsLabel.Text = "FPS: " .. fps .. " | PING: " .. ping .. "ms"
+    end
+end)
+
+-- Main menu
+local MainFrame = Instance.new("Frame")
+MainFrame.Parent = ScreenGui
+MainFrame.Size = UDim2.new(0, 180, 0, 240)
+MainFrame.Position = UDim2.new(0.5, -90, 0.4, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(20, 25, 20)
+MainFrame.Visible = false
+MainFrame.Active = true
+MainFrame.Draggable = true
+
+Instance.new("UICorner").Parent = MainFrame
+
+local MenuTitle = Instance.new("TextLabel")
+MenuTitle.Parent = MainFrame
+MenuTitle.Size = UDim2.new(1, 0, 0, 40)
+MenuTitle.BackgroundTransparency = 1
+MenuTitle.Text = "SPRING MENU 🌿"
+MenuTitle.Font = Enum.Font.GothamBlack
+MenuTitle.TextSize = 16
+
+-- Speed
+local SpeedBtn = Instance.new("TextButton")
+SpeedBtn.Parent = MainFrame
+SpeedBtn.Size = UDim2.new(1, -20, 0, 35)
+SpeedBtn.Position = UDim2.new(0, 10, 0, 50)
+SpeedBtn.BackgroundColor3 = Color3.fromRGB(40, 80, 40)
+SpeedBtn.Text = "SPRINT BOOST"
+SpeedBtn.Font = Enum.Font.GothamBold
+SpeedBtn.TextSize = 9
+Instance.new("UICorner").Parent = SpeedBtn
+
+-- Auto Bat
+local AutoBatBtn = Instance.new("TextButton")
+AutoBatBtn.Parent = MainFrame
+AutoBatBtn.Size = UDim2.new(1, -20, 0, 35)
+AutoBatBtn.Position = UDim2.new(0, 10, 0, 95)
+AutoBatBtn.BackgroundColor3 = Color3.fromRGB(40, 80, 40)
+AutoBatBtn.Text = "AUTO STRIKE"
+AutoBatBtn.Font = Enum.Font.GothamBold
+AutoBatBtn.TextSize = 9
+Instance.new("UICorner").Parent = AutoBatBtn
+
+-- Spin
+local SpinBotBtn = Instance.new("TextButton")
+SpinBotBtn.Parent = MainFrame
+SpinBotBtn.Size = UDim2.new(1, -20, 0, 35)
+SpinBotBtn.Position = UDim2.new(0, 10, 0, 140)
+SpinBotBtn.BackgroundColor3 = Color3.fromRGB(40, 80, 40)
+SpinBotBtn.Text = "PETAL SPIN"
+SpinBotBtn.Font = Enum.Font.GothamBold
+SpinBotBtn.TextSize = 9
+Instance.new("UICorner").Parent = SpinBotBtn
+
+-- Discord copy
+local DiscordBtn = Instance.new("TextButton")
+DiscordBtn.Parent = MainFrame
+DiscordBtn.Size = UDim2.new(1, -20, 0, 35)
+DiscordBtn.Position = UDim2.new(0, 10, 0, 185)
+DiscordBtn.BackgroundColor3 = Color3.fromRGB(88, 101, 242)
+DiscordBtn.Text = "COPY DISCORD"
+DiscordBtn.Font = Enum.Font.GothamBold
+DiscordBtn.TextSize = 9
+Instance.new("UICorner").Parent = DiscordBtn
+
+DiscordBtn.MouseButton1Click:Connect(function()
+    setclipboard("https://discord.gg/M8Yb2ntf6")
+end)
+
+-- Toggle button
+local ToggleBtn = Instance.new("TextButton")
+ToggleBtn.Parent = ScreenGui
+ToggleBtn.Size = UDim2.new(0, 45, 0, 45)
+ToggleBtn.Position = UDim2.new(0, 20, 0.2, 0)
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(20, 25, 20)
+ToggleBtn.Text = "🌸"
+ToggleBtn.Font = Enum.Font.GothamBlack
+ToggleBtn.TextSize = 15
+ToggleBtn.Draggable = true
+
+Instance.new("UICorner").Parent = ToggleBtn
+
+ToggleBtn.MouseButton1Click:Connect(function()
+    MainFrame.Visible = not MainFrame.Visible
+end)
