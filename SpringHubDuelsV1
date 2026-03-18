@@ -1,0 +1,956 @@
+# -- https://discord.gg/WfTDsBPR9n leaked by https://discord.gg/WfTDsBPR9n join for more sources  
+  
+  
+-- ============================================================  
+-- // [1] GLOBAL SERVICES WITH ERROR HANDLING // --  
+-- ============================================================  
+  
+local Players          = game:GetService("Players")  
+local HttpService      = game:GetService("HttpService")  
+local UserInputService = game:GetService("UserInputService")  
+local RunService       = game:GetService("RunService")  
+local TweenService     = game:GetService("TweenService")  
+local StarterGui       = game:GetService("StarterGui")  
+  
+  
+-- ============================================================  
+-- // [2] BASIC SETUP WITH ERROR PROTECTION // --  
+-- ============================================================  
+  
+local LocalPlayer = Players.LocalPlayer  
+local Character   = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()  
+local Humanoid    = Character:WaitForChild("Humanoid")  
+local RootPart    = Character:WaitForChild("HumanoidRootPart")  
+  
+-- Refresh character refs on respawn  
+LocalPlayer.CharacterAdded:Connect(function(newChar)  
+    Character = newChar  
+    Humanoid  = newChar:WaitForChild("Humanoid")  
+    RootPart  = newChar:WaitForChild("HumanoidRootPart")  
+    -- Re-attach billboard to new character  
+    local head = newChar:WaitForChild("HumanoidRootPart")  
+    if VexinBillboard then  
+        VexinBillboard.Adornee = head  
+        VexinBillboard.Parent  = head  
+    end  
+end)  
+  
+-- Luarmor loader wrapped in pcall so executor doesn't crash on auth failure  
+pcall(function()  
+    loadstring(game:HttpGet("https://api.luarmor.net/files/v4/loaders/d2cbfaf265001f2b7910f8f0be5ca577.lua"))()  
+end)  
+  
+-- DejaVu duplicate-execution guard  
+local dejavu = Instance.new("IntValue")  
+dejavu.Name   = "dejavu"  
+dejavu.Value  = 4157741466  
+dejavu.Parent = LocalPlayer  
+  
+-- Config: all user-tuneable defaults in one table  
+local Config = {  
+    NormalSpeed   = 60,  
+    CarrySpeed    = 30,  
+    SpeedKey      = "Q",  
+    AutoBatKey    = "E",  
+    AutoLeftKey   = "Z",  
+    AutoRightKey  = "C",  
+    PlayLeftKey   = "H",  
+    PlayRightKey  = "J",  
+    DropKey       = "G",  
+    GalaxyKey     = "M",  
+    GalaxyGravity = 70,  
+    HopPower      = 35,  
+    UIScale       = 1.5,  
+    StealRadius   = 8,  
+}  
+  
+-- Runtime toggle state  
+local State = {  
+    CarryMode     = false,  
+    AutoBat       = false,  
+    AutoLeft      = false,  
+    AutoRight     = false,  
+    AutoSteal     = false,  
+    AntiRagdoll   = false,  
+    RagdollTPBase = false,  
+    Unwalk        = false,  
+    Optimizer     = false,  
+    Chams         = false,  
+    GalaxyMode    = false,  
+    ShinyGraphics = false,  
+    GuiVisible    = true,  
+}  
+  
+-- Shared color palette â€” tweak once, updates everywhere  
+local COLOR_ACCENT       = Color3.new(0.541176, 0.168627, 0.886275)  -- purple  
+local COLOR_DARK_BG      = Color3.new(0.0392157, 0.0392157, 0.0392157)  
+local COLOR_DARKER_BG    = Color3.new(0.0196078, 0.0196078, 0.0196078)  
+local COLOR_BTN_DARK     = Color3.new(0.0784314, 0,         0.117647)  
+local COLOR_BTN_FLOAT    = Color3.new(0.0392157, 0,         0.054902)  
+local COLOR_TEXTBOX_BG   = Color3.new(0.294118,  0,         0.509804)  
+local COLOR_TOGGLE_OFF   = Color3.new(0.196078,  0.196078,  0.196078)  
+local COLOR_SAVE_GREEN   = Color3.new(0.133333,  0.772549,  0.368627)  
+local COLOR_HUD_FG       = Color3.new(0.698039,  0,         1)  
+local COLOR_HUD_STROKE   = Color3.new(0.156863,  0,         0.235294)  
+local COLOR_MODE_LABEL   = Color3.new(0.729412,  0.333333,  0.827451)  
+local COLOR_WHITE        = Color3.new(1,          1,         1)  
+local COLOR_GREY_TEXT    = Color3.new(0.784314,  0.784314,  0.784314)  
+local COLOR_DISC_STROKE  = Color3.new(0.345098,  0.396078,  0.94902)  
+  
+-- Billboard ref declared early so CharacterAdded can re-attach it  
+local VexinBillboard  
+  
+  
+-- ============================================================  
+-- // [3] CORE GUI CREATION WITH FALLBACK // --  
+-- ============================================================  
+  
+-- Destroy stale instance from a previous injection  
+if LocalPlayer.PlayerGui:FindFirstChild("VexinSlottedGUI") then  
+    LocalPlayer.PlayerGui.VexinSlottedGUI:Destroy()  
+end  
+  
+-- â”€â”€ Shared constructor helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€  
+  
+local function addCorner(parent, px)  
+    local c = Instance.new("UICorner")  
+    c.CornerRadius = UDim.new(0, px or 8)  
+    c.Parent = parent  
+    return c  
+end  
+  
+local function addStroke(parent, color, thickness)  
+    local s = Instance.new("UIStroke")  
+    s.Color     = color or COLOR_ACCENT  
+    s.Thickness = thickness or 2  
+    s.Parent    = parent  
+    return s  
+end  
+  
+-- Shared drag logic factory: pass any draggable Frame + its handle Frame  
+local function attachDrag(dragHandle, targetFrame)  
+    local dragging, dragStart, startPos  
+    dragHandle.InputBegan:Connect(function(input)  
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then  
+            dragging  = true  
+            dragStart = input.Position  
+            startPos  = targetFrame.Position  
+        end  
+    end)  
+    UserInputService.InputChanged:Connect(function(input)  
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then  
+            local delta = input.Position - dragStart  
+            targetFrame.Position = UDim2.new(  
+                startPos.X.Scale, startPos.X.Offset + delta.X,  
+                startPos.Y.Scale, startPos.Y.Offset + delta.Y  
+            )  
+        end  
+    end)  
+    UserInputService.InputEnded:Connect(function(input)  
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then  
+            dragging = false  
+        end  
+    end)  
+end  
+  
+-- â”€â”€ Root ScreenGui â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€  
+  
+local ScreenGui = Instance.new("ScreenGui")  
+ScreenGui.Name         = "VexinSlottedGUI"  
+ScreenGui.ResetOnSpawn = false  
+ScreenGui.Parent       = LocalPlayer.PlayerGui  
+  
+-- â”€â”€ Main window â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€  
+  
+local MainFrame = Instance.new("Frame")  
+MainFrame.Name             = "Main"  
+MainFrame.Size             = UDim2.new(0, 387, 0, 626)  
+MainFrame.Position         = UDim2.new(0, 20, 0, 20)  
+MainFrame.BackgroundColor3 = COLOR_DARK_BG  
+MainFrame.BorderSizePixel  = 0  
+MainFrame.Active           = true  
+MainFrame.ClipsDescendants = true  
+MainFrame.Parent           = ScreenGui  
+addCorner(MainFrame, 18)  
+addStroke(MainFrame, COLOR_ACCENT, 2)  
+  
+-- Header bar  
+local HeaderFrame = Instance.new("Frame")  
+HeaderFrame.Name               = "HeaderBar"  
+HeaderFrame.Size               = UDim2.new(1, 0, 0, 59)  
+HeaderFrame.BackgroundTransparency = 1  
+HeaderFrame.Parent             = MainFrame  
+  
+local BatIcon = Instance.new("TextLabel")  
+BatIcon.Size               = UDim2.new(0, 41, 0, 41)  
+BatIcon.Position           = UDim2.new(0, 13, 0, 11)  
+BatIcon.BackgroundTransparency = 1  
+BatIcon.Text               = "ðŸ¦‡"  
+BatIcon.TextColor3         = COLOR_ACCENT  
+BatIcon.Font               = Enum.Font.GothamBold  
+BatIcon.TextSize           = 29  
+BatIcon.Parent             = HeaderFrame  
+  
+local TitleLabel = Instance.new("TextLabel")  
+TitleLabel.Size               = UDim2.new(0, 230, 0, 46)  
+TitleLabel.Position           = UDim2.new(0, 59, 0, 9)  
+TitleLabel.BackgroundTransparency = 1  
+TitleLabel.Text               = "VEXIN SLOTTED"  
+TitleLabel.TextColor3         = COLOR_WHITE  
+TitleLabel.Font               = Enum.Font.GothamBlack  
+TitleLabel.TextSize           = 22  
+TitleLabel.TextXAlignment     = Enum.TextXAlignment.Left  
+TitleLabel.TextYAlignment     = Enum.TextYAlignment.Center  
+TitleLabel.Parent             = HeaderFrame  
+  
+local MinimizeButton = Instance.new("TextButton")  
+MinimizeButton.Size               = UDim2.new(0, 33, 0, 33)  
+MinimizeButton.Position           = UDim2.new(1, -44, 0, 12)  
+MinimizeButton.BackgroundTransparency = 1  
+MinimizeButton.Text               = "â€“"  
+MinimizeButton.TextColor3         = COLOR_GREY_TEXT  
+MinimizeButton.Font               = Enum.Font.GothamBold  
+MinimizeButton.TextSize           = 22  
+MinimizeButton.Parent             = HeaderFrame  
+  
+attachDrag(HeaderFrame, MainFrame)  
+  
+-- Pill restore button (shown when main window is minimized)  
+local TogglePill = Instance.new("TextButton")  
+TogglePill.Name             = "VexinPill"  
+TogglePill.Size             = UDim2.new(0, 165, 0, 49)  
+TogglePill.Position         = UDim2.new(0, 20, 0, 20)  
+TogglePill.BackgroundColor3 = COLOR_BTN_DARK  
+TogglePill.BorderSizePixel  = 0  
+TogglePill.Text             = ""  
+TogglePill.Visible          = false  
+TogglePill.Active           = true  
+TogglePill.ZIndex           = 10  
+TogglePill.Parent           = ScreenGui  
+addCorner(TogglePill, 24)  
+  
+local PillBatLabel = Instance.new("TextLabel")  
+PillBatLabel.Size               = UDim2.new(0, 36, 1, 0)  
+PillBatLabel.Position           = UDim2.new(0, 7, 0, 0)  
+PillBatLabel.BackgroundTransparency = 1  
+PillBatLabel.Text               = "ðŸ¦‡"  
+PillBatLabel.TextColor3         = COLOR_GREY_TEXT  
+PillBatLabel.TextSize           = 25  
+PillBatLabel.TextXAlignment     = Enum.TextXAlignment.Center  
+PillBatLabel.ZIndex             = 11  
+PillBatLabel.Parent             = TogglePill  
+  
+local PillTextLabel = Instance.new("TextLabel")  
+PillTextLabel.Size               = UDim2.new(0, 101, 1, 0)  
+PillTextLabel.Position           = UDim2.new(0, 49, 0, 0)  
+PillTextLabel.BackgroundTransparency = 1  
+PillTextLabel.Text               = "VEXIN"  
+PillTextLabel.TextColor3         = COLOR_GREY_TEXT  
+PillTextLabel.TextSize           = 23  
+PillTextLabel.Font               = Enum.Font.GothamBold  
+PillTextLabel.ZIndex             = 11  
+PillTextLabel.Parent             = TogglePill  
+  
+MinimizeButton.MouseButton1Click:Connect(function()  
+    MainFrame.Visible  = false  
+    TogglePill.Visible = true  
+end)  
+TogglePill.MouseButton1Click:Connect(function()  
+    MainFrame.Visible  = true  
+    TogglePill.Visible = false  
+end)  
+  
+-- â”€â”€ Scrolling content area â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€  
+  
+local ScrollingFrame = Instance.new("ScrollingFrame")  
+ScrollingFrame.Name                   = "ScrollContent"  
+ScrollingFrame.Size                   = UDim2.new(1, -18, 1, -69)  
+ScrollingFrame.Position               = UDim2.new(0, 9, 0, 59)  
+ScrollingFrame.BackgroundTransparency = 1  
+ScrollingFrame.BorderSizePixel        = 0  
+ScrollingFrame.ScrollBarThickness     = 7  
+ScrollingFrame.ScrollBarImageColor3   = COLOR_ACCENT  
+ScrollingFrame.CanvasSize             = UDim2.new(0, 0, 0, 1567)  
+ScrollingFrame.Parent                 = MainFrame  
+  
+-- â”€â”€ Row builder helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€  
+  
+local function makeLabel(text, posY, width)  
+    local lbl = Instance.new("TextLabel")  
+    lbl.Size               = UDim2.new(0, width or 165, 0, 27)  
+    lbl.Position           = UDim2.new(0, 9, 0, posY)  
+    lbl.BackgroundTransparency = 1  
+    lbl.Text               = text  
+    lbl.TextColor3         = COLOR_WHITE  
+    lbl.TextSize           = 12  
+    lbl.Font               = Enum.Font.Gotham  
+    lbl.TextXAlignment     = Enum.TextXAlignment.Left  
+    lbl.Parent             = ScrollingFrame  
+    return lbl  
+end  
+  
+local function makeTextBox(default, posY)  
+    local tb = Instance.new("TextBox")  
+    tb.Size               = UDim2.new(0, 165, 0, 33)  
+    tb.Position           = UDim2.new(0, 193, 0, posY)  
+    tb.BackgroundColor3   = COLOR_TEXTBOX_BG  
+    tb.BorderSizePixel    = 0  
+    tb.Text               = tostring(default)  
+    tb.PlaceholderText    = tostring(default)  
+    tb.TextColor3         = COLOR_WHITE  
+    tb.Font               = Enum.Font.GothamBold  
+    tb.TextSize           = 12  
+    tb.ClearTextOnFocus   = false  
+    tb.Parent             = ScrollingFrame  
+    addCorner(tb, 7)  
+    return tb  
+end  
+  
+local function makeSeparator(posY)  
+    local f = Instance.new("Frame")  
+    f.Size             = UDim2.new(1, -18, 0, 2)  
+    f.Position         = UDim2.new(0, 9, 0, posY)  
+    f.BackgroundColor3 = COLOR_ACCENT  
+    f.BorderSizePixel  = 0  
+    f.Parent           = ScrollingFrame  
+    return f  
+end  
+  
+local function makeSectionHeader(text, posY)  
+    local lbl = Instance.new("TextLabel")  
+    lbl.Size               = UDim2.new(1, -18, 0, 25)  
+    lbl.Position           = UDim2.new(0, 9, 0, posY)  
+    lbl.BackgroundTransparency = 1  
+    lbl.Text               = text  
+    lbl.TextColor3         = COLOR_MODE_LABEL  
+    lbl.TextSize           = 11  
+    lbl.Font               = Enum.Font.GothamMedium  
+    lbl.TextXAlignment     = Enum.TextXAlignment.Center  
+    lbl.Parent             = ScrollingFrame  
+    return lbl  
+end  
+  
+-- Wide toggle button (spans full scroll width)  
+local function makeWideButton(text, posY, onClick)  
+    local btn = Instance.new("TextButton")  
+    btn.Size             = UDim2.new(1, -18, 0, 44)  
+    btn.Position         = UDim2.new(0, 9, 0, posY)  
+    btn.BackgroundColor3 = COLOR_ACCENT  
+    btn.BorderSizePixel  = 0  
+    btn.Text             = text  
+    btn.TextColor3       = COLOR_WHITE  
+    btn.TextSize         = 14  
+    btn.Font             = Enum.Font.GothamBold  
+    btn.Parent           = ScrollingFrame  
+    addCorner(btn, 9)  
+    if onClick then btn.MouseButton1Click:Connect(onClick) end  
+    return btn  
+end  
+  
+-- Toggle row: [ KEY ] [ Feature Label ........ ] [ slider dot ]  
+-- Returns table: { container, keyBtn, dot, indicatorBg, toggle() }  
+local function makeToggleRow(keyText, labelText, posY, onToggle)  
+    local row = Instance.new("Frame")  
+    row.Size             = UDim2.new(1, -18, 0, 44)  
+    row.Position         = UDim2.new(0, 9, 0, posY)  
+    row.BackgroundColor3 = COLOR_BTN_DARK  
+    row.BorderSizePixel  = 0  
+    row.Parent           = ScrollingFrame  
+    addCorner(row, 9)  
+  
+    local keyBtn = Instance.new("TextButton")  
+    keyBtn.Size             = UDim2.new(0, 36, 0, 29)  
+    keyBtn.Position         = UDim2.new(0, 0, 0.5, -14)  
+    keyBtn.BackgroundColor3 = COLOR_TEXTBOX_BG  
+    keyBtn.BorderSizePixel  = 0  
+    keyBtn.Text             = keyText  
+    keyBtn.TextColor3       = COLOR_WHITE  
+    keyBtn.TextSize         = 11  
+    keyBtn.Font             = Enum.Font.GothamBold  
+    keyBtn.Visible          = (keyText ~= "")  
+    keyBtn.Parent           = row  
+    if keyBtn.Visible then addCorner(keyBtn, 6) end  
+  
+    local nameLabel = Instance.new("TextLabel")  
+    nameLabel.Size               = UDim2.new(0.6, -44, 1, 0)  
+    nameLabel.Position           = UDim2.new(0, keyBtn.Visible and 44 or 12, 0, 0)  
+    nameLabel.BackgroundTransparency = 1  
+    nameLabel.Text               = labelText  
+    nameLabel.TextColor3         = COLOR_WHITE  
+    nameLabel.TextSize           = 12  
+    nameLabel.Font               = Enum.Font.GothamMedium  
+    nameLabel.TextXAlignment     = Enum.TextXAlignment.Left  
+    nameLabel.Parent             = row  
+  
+    local indicatorBg = Instance.new("Frame")  
+    indicatorBg.Size             = UDim2.new(0, 49, 0, 25)  
+    indicatorBg.Position         = UDim2.new(1, -59, 0.5, -12)  
+    indicatorBg.BackgroundColor3 = COLOR_TOGGLE_OFF  
+    indicatorBg.BorderSizePixel  = 0  
+    indicatorBg.Parent           = row  
+    addCorner(indicatorBg, 12)  
+  
+    local dot = Instance.new("Frame")  
+    dot.Size             = UDim2.new(0, 20, 0, 20)  
+    dot.Position         = UDim2.new(0, 2, 0.5, -10)  
+    dot.BackgroundColor3 = COLOR_WHITE  
+    dot.BorderSizePixel  = 0  
+    dot.Parent           = indicatorBg  
+    addCorner(dot, 10)  
+  
+    local enabled = false  
+    local function toggle()  
+        enabled = not enabled  
+        TweenService:Create(dot, TweenInfo.new(0.12, Enum.EasingStyle.Quad), {  
+            Position = enabled  
+                and UDim2.new(1, -22, 0.5, -10)  
+                or  UDim2.new(0,  2, 0.5, -10)  
+        }):Play()  
+        indicatorBg.BackgroundColor3 = enabled and COLOR_ACCENT or COLOR_TOGGLE_OFF  
+        if onToggle then onToggle(enabled) end  
+    end  
+  
+    row.MouseButton1Click:Connect(toggle)  
+    if keyBtn.Visible then keyBtn.MouseButton1Click:Connect(toggle) end  
+  
+    return { container = row, keyBtn = keyBtn, dot = dot,  
+             indicatorBg = indicatorBg, toggle = toggle, enabled = function() return enabled end }  
+end  
+  
+  
+-- ============================================================  
+-- // [4] FUNCTIONALITY // --  
+-- ============================================================  
+  
+-- â”€â”€ Speed section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€  
+  
+makeLabel("Normal Speed:",     9)  
+local NormalSpeedBox = makeTextBox(Config.NormalSpeed,  9)  
+  
+makeLabel("Carry Speed:",     53)  
+local CarrySpeedBox  = makeTextBox(Config.CarrySpeed,  53)  
+  
+makeLabel("Speed Toggle Key:", 97)  
+local SpeedKeyBox    = makeTextBox(Config.SpeedKey,    97)  
+  
+local ModeLabel = makeLabel("Mode: Normal", 141, 360)  
+ModeLabel.TextColor3 = COLOR_MODE_LABEL  
+ModeLabel.TextSize   = 14  
+  
+makeSeparator(177)  
+  
+-- â”€â”€ Auto-Bat â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€  
+  
+makeLabel("Auto-Bat Key:", 191)  
+local AutoBatKeyBox = makeTextBox(Config.AutoBatKey, 191)  
+local AutoBatButton = makeWideButton("Auto-Bat: OFF", 235, function()  
+    State.AutoBat = not State.AutoBat  
+    AutoBatButton.Text             = State.AutoBat and "Auto-Bat: ON"  or "Auto-Bat: OFF"  
+    AutoBatButton.BackgroundColor3 = State.AutoBat and COLOR_HUD_FG    or COLOR_ACCENT  
+end)  
+  
+makeSeparator(286)  
+  
+-- â”€â”€ Auto Left â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€  
+  
+makeLabel("Auto Left Key:", 300)  
+local AutoLeftKeyBox = makeTextBox(Config.AutoLeftKey, 300)  
+local AutoLeftRow    = makeToggleRow("Z", "Auto Left", 344, function(on)  
+    State.AutoLeft = on  
+end)  
+  
+-- â”€â”€ Auto Right â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€  
+  
+makeLabel("Auto Right Key:", 391)  
+local AutoRightKeyBox = makeTextBox(Config.AutoRightKey, 391)  
+local AutoRightRow    = makeToggleRow("C", "Auto Right", 435, function(on)  
+    State.AutoRight = on  
+end)  
+  
+makeSeparator(482)  
+  
+-- â”€â”€ Auto Play section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€  
+  
+makeSectionHeader("â€” AUTO PLAY (Duel Waypoints) â€”", 496)  
+  
+makeLabel("Play Left Key:",  528)  
+local PlayLeftKeyBox = makeTextBox(Config.PlayLeftKey, 528)  
+makeWideButton("Auto Play Left",  572)  
+  
+makeLabel("Play Right Key:", 623)  
+local PlayRightKeyBox = makeTextBox(Config.PlayRightKey, 623)  
+makeWideButton("Auto Play Right", 667)  
+  
+makeSeparator(718)  
+  
+-- â”€â”€ Drop Brainrot section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€  
+  
+makeSectionHeader("â€” DROP BRAINROT â€”", 732)  
+  
+makeLabel("Drop Key:", 764)  
+local DropKeyBox = makeTextBox(Config.DropKey, 764)  
+makeWideButton("ðŸª‚ Drop Brainrot", 846)  
+  
+makeSeparator(897)  
+  
+-- â”€â”€ Feature toggle rows (no key label) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€  
+  
+makeToggleRow("", "Auto Steal",       911,  function(on) State.AutoSteal    = on end)  
+makeToggleRow("", "Anti Ragdoll",     958,  function(on) State.AntiRagdoll  = on end)  
+makeToggleRow("", "Ragdoll TP Base",  1005, function(on) State.RagdollTPBase = on end)  
+makeToggleRow("", "Unwalk",           1052, function(on) State.Unwalk        = on end)  
+makeToggleRow("", "Optimizer + XRay", 1099, function(on) State.Optimizer     = on end)  
+makeToggleRow("", "Chams (ESP)",      1146, function(on) State.Chams         = on end)  
+  
+makeSeparator(1193)  
+  
+-- â”€â”€ Galaxy / Graphics â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€  
+  
+local GalaxyRow = makeToggleRow("M", "Galaxy Mode",    1207, function(on)  
+    State.GalaxyMode = on  
+    if on then  
+        workspace.Gravity = workspace.Gravity * ((tonumber(GalaxyGravBox and GalaxyGravBox.Text) or 70) / 100)  
+    else  
+        workspace.Gravity = 196.2  
+    end  
+end)  
+  
+local ShinyRow = makeToggleRow("", "Shiny Graphics", 1254, function(on)  
+    State.ShinyGraphics = on  
+end)  
+  
+makeLabel("Galaxy Gravity %:", 1301)  
+local GalaxyGravBox = makeTextBox(Config.GalaxyGravity, 1301)  
+  
+makeLabel("Hop Power:", 1345)  
+local HopPowerBox = makeTextBox(Config.HopPower, 1345)  
+  
+makeSeparator(1389)  
+  
+-- â”€â”€ UI Scale â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€  
+  
+makeLabel("UI Scale:", 1403)  
+local UIScaleBox = makeTextBox(Config.UIScale, 1403)  
+UIScaleBox:GetPropertyChangedSignal("Text"):Connect(function()  
+    local scale = tonumber(UIScaleBox.Text)  
+    if scale and scale > 0 and scale < 5 then  
+        local scaleObj = MainFrame:FindFirstChildOfClass("UIScale")  
+            or Instance.new("UIScale", MainFrame)  
+        scaleObj.Scale = scale  
+    end  
+end)  
+  
+-- â”€â”€ Save Config â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€  
+  
+local SaveButton = Instance.new("TextButton")  
+SaveButton.Size             = UDim2.new(1, -18, 0, 44)  
+SaveButton.Position         = UDim2.new(0, 9, 0, 1447)  
+SaveButton.BackgroundColor3 = COLOR_SAVE_GREEN  
+SaveButton.BorderSizePixel  = 0  
+SaveButton.Text             = "Save Config"  
+SaveButton.TextColor3       = COLOR_WHITE  
+SaveButton.TextSize         = 14  
+SaveButton.Font             = Enum.Font.GothamBold  
+SaveButton.Parent           = ScrollingFrame  
+addCorner(SaveButton, 9)  
+  
+SaveButton.MouseButton1Click:Connect(function()  
+    Config.NormalSpeed   = tonumber(NormalSpeedBox.Text)  or Config.NormalSpeed  
+    Config.CarrySpeed    = tonumber(CarrySpeedBox.Text)   or Config.CarrySpeed  
+    Config.GalaxyGravity = tonumber(GalaxyGravBox.Text)   or Config.GalaxyGravity  
+    Config.HopPower      = tonumber(HopPowerBox.Text)     or Config.HopPower  
+    Config.UIScale       = tonumber(UIScaleBox.Text)      or Config.UIScale  
+    Config.StealRadius   = tonumber(RadiusBox and RadiusBox.Text) or Config.StealRadius  
+    TweenService:Create(SaveButton, TweenInfo.new(0.1), {  
+        BackgroundColor3 = Color3.new(0.1, 0.95, 0.4)  
+    }):Play()  
+    task.delay(0.8, function()  
+        TweenService:Create(SaveButton, TweenInfo.new(0.1), {  
+            BackgroundColor3 = COLOR_SAVE_GREEN  
+        }):Play()  
+    end)  
+end)  
+  
+-- â”€â”€ Floating quick-access panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€  
+  
+local FloatingPanel = Instance.new("Frame")  
+FloatingPanel.Name             = "FloatingButtons"  
+FloatingPanel.BackgroundColor3 = COLOR_DARKER_BG  
+FloatingPanel.Size             = UDim2.new(0, 106, 0, 456)  
+FloatingPanel.Position         = UDim2.new(1, -110, 0.5, -220)  
+FloatingPanel.Visible          = true  
+FloatingPanel.ZIndex           = 5  
+FloatingPanel.Parent           = ScreenGui  
+addCorner(FloatingPanel, 12)  
+addStroke(FloatingPanel, COLOR_ACCENT, 1)  
+  
+local DragBar = Instance.new("Frame")  
+DragBar.Size             = UDim2.new(1, 0, 0, 14)  
+DragBar.BackgroundColor3 = COLOR_BTN_DARK  
+DragBar.ZIndex           = 6  
+DragBar.Parent           = FloatingPanel  
+addCorner(DragBar, 6)  
+  
+local DragBarLabel = Instance.new("TextLabel")  
+DragBarLabel.Size               = UDim2.new(1, 0, 1, 0)  
+DragBarLabel.BackgroundTransparency = 1  
+DragBarLabel.Text               = "â ¿"  
+DragBarLabel.TextColor3         = Color3.new(0.5, 0.5, 0.5)  
+DragBarLabel.TextSize           = 10  
+DragBarLabel.ZIndex             = 7  
+DragBarLabel.Parent             = DragBar  
+  
+attachDrag(DragBar, FloatingPanel)  
+  
+local FloatLayout = Instance.new("UIListLayout")  
+FloatLayout.Padding             = UDim.new(0, 8)  
+FloatLayout.SortOrder           = Enum.SortOrder.LayoutOrder  
+FloatLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center  
+FloatLayout.Parent              = FloatingPanel  
+  
+local FloatPadding = Instance.new("UIPadding")  
+FloatPadding.PaddingTop    = UDim.new(0, 22)  
+FloatPadding.PaddingBottom = UDim.new(0, 8)  
+FloatPadding.Parent        = FloatingPanel  
+  
+-- Returns the button and its status dot  
+local function makeFloatBtn(topText, botText, order, onClick)  
+    local btn = Instance.new("TextButton")  
+    btn.Size             = UDim2.new(0, 90, 0, 80)  
+    btn.BackgroundColor3 = COLOR_BTN_FLOAT  
+    btn.BorderSizePixel  = 0  
+    btn.Text             = ""  
+    btn.LayoutOrder      = order  
+    btn.ZIndex           = 6  
+    btn.Parent           = FloatingPanel  
+    addCorner(btn, 14)  
+    addStroke(btn, COLOR_ACCENT, 1)  
+  
+    local t = Instance.new("TextLabel")  
+    t.Size               = UDim2.new(1, -8, 0, 22)  
+    t.Position           = UDim2.new(0, 4, 0, 10)  
+    t.BackgroundTransparency = 1  
+    t.Text               = topText  
+    t.TextColor3         = COLOR_WHITE  
+    t.TextSize           = 15  
+    t.Font               = Enum.Font.GothamBlack  
+    t.ZIndex             = 7  
+    t.Parent             = btn  
+  
+    local b = Instance.new("TextLabel")  
+    b.Size               = UDim2.new(1, -8, 0, 18)  
+    b.Position           = UDim2.new(0, 4, 0, 33)  
+    b.BackgroundTransparency = 1  
+    b.Text               = botText  
+    b.TextColor3         = COLOR_GREY_TEXT  
+    b.TextSize           = 13  
+    b.Font               = Enum.Font.Gotham  
+    b.ZIndex             = 7  
+    b.Parent             = btn  
+  
+    local statusDot = Instance.new("Frame")  
+    statusDot.Size             = UDim2.new(0, 7, 0, 7)  
+    statusDot.Position         = UDim2.new(0.5, -3, 1, -13)  
+    statusDot.BackgroundColor3 = COLOR_TOGGLE_OFF  
+    statusDot.ZIndex           = 7  
+    statusDot.Parent           = btn  
+    addCorner(statusDot, 4)  
+  
+    if onClick then btn.MouseButton1Click:Connect(onClick) end  
+    return btn, statusDot  
+end  
+  
+local AutoBatFloatBtn, AutoBatDot = makeFloatBtn("AUTO", "BAT", 1, function()  
+    State.AutoBat = not State.AutoBat  
+    AutoBatButton.Text             = State.AutoBat and "Auto-Bat: ON" or "Auto-Bat: OFF"  
+    AutoBatButton.BackgroundColor3 = State.AutoBat and COLOR_HUD_FG   or COLOR_ACCENT  
+    AutoBatDot.BackgroundColor3    = State.AutoBat and COLOR_ACCENT    or COLOR_TOGGLE_OFF  
+end)  
+  
+local CarryModeFloatBtn, CarryDot = makeFloatBtn("CARRY", "MODE", 2, function()  
+    State.CarryMode = not State.CarryMode  
+    ModeLabel.Text = State.CarryMode and "Mode: Carry" or "Mode: Normal"  
+    CarryDot.BackgroundColor3 = State.CarryMode and COLOR_ACCENT or COLOR_TOGGLE_OFF  
+end)  
+  
+makeFloatBtn("PLAY",  "LEFT",     3)  
+makeFloatBtn("PLAY",  "RIGHT",    4)  
+makeFloatBtn("DROP",  "BRAINROT", 5)  
+  
+-- â”€â”€ Ragdoll TP Panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€  
+  
+local RagdollTPPanel = Instance.new("Frame")  
+RagdollTPPanel.Name             = "RagdollTPPanel"  
+RagdollTPPanel.BackgroundColor3 = COLOR_DARKER_BG  
+RagdollTPPanel.Size             = UDim2.new(0, 111, 0, 184)  
+RagdollTPPanel.Position         = UDim2.new(0, 20, 0.5, 0)  
+RagdollTPPanel.Parent           = ScreenGui  
+addCorner(RagdollTPPanel, 12)  
+addStroke(RagdollTPPanel, COLOR_ACCENT, 1)  
+  
+attachDrag(RagdollTPPanel, RagdollTPPanel)  
+  
+local RagdollLayout = Instance.new("UIListLayout")  
+RagdollLayout.Padding             = UDim.new(0, 6)  
+RagdollLayout.SortOrder           = Enum.SortOrder.LayoutOrder  
+RagdollLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center  
+RagdollLayout.Parent              = RagdollTPPanel  
+  
+local RagdollPad = Instance.new("UIPadding")  
+RagdollPad.PaddingTop    = UDim.new(0, 20)  
+RagdollPad.PaddingBottom = UDim.new(0, 6)  
+RagdollPad.Parent        = RagdollTPPanel  
+  
+local TPButton = Instance.new("TextButton")  
+TPButton.Size             = UDim2.new(0, 95, 0, 72)  
+TPButton.BackgroundColor3 = COLOR_BTN_DARK  
+TPButton.BorderSizePixel  = 0  
+TPButton.Text             = "TP"  
+TPButton.TextColor3       = COLOR_WHITE  
+TPButton.TextSize         = 14  
+TPButton.Font             = Enum.Font.GothamBold  
+TPButton.Parent           = RagdollTPPanel  
+addCorner(TPButton, 10)  
+  
+TPButton.MouseButton1Click:Connect(function()  
+    if not Character or not RootPart then return end  
+    local base = workspace:FindFirstChild("Base")  
+    if base then  
+        RootPart.CFrame = base.CFrame + Vector3.new(0, 5, 0)  
+    end  
+end)  
+  
+-- â”€â”€ HUD Frame (FPS / Ping / Status / Radius) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€  
+  
+local HUDFrame = Instance.new("Frame")  
+HUDFrame.Name                   = "HUDFrame"  
+HUDFrame.Size                   = UDim2.new(0, 424, 0, 66)  
+HUDFrame.Position               = UDim2.new(0.5, -212, 1, -82)  
+HUDFrame.BackgroundColor3       = Color3.new(0, 0, 0)  
+HUDFrame.BackgroundTransparency = 0.35  
+HUDFrame.BorderSizePixel        = 0  
+HUDFrame.ZIndex                 = 3  
+HUDFrame.Parent                 = ScreenGui  
+addCorner(HUDFrame, 8)  
+addStroke(HUDFrame, COLOR_HUD_STROKE, 1.5)  
+  
+attachDrag(HUDFrame, HUDFrame)  
+  
+local StatusLabel = Instance.new("TextLabel")  
+StatusLabel.Size               = UDim2.new(0.55, 0, 0, 20)  
+StatusLabel.Position           = UDim2.new(0, 12, 0, 7)  
+StatusLabel.BackgroundTransparency = 1  
+StatusLabel.Text               = "READY"  
+StatusLabel.TextColor3         = COLOR_HUD_FG  
+StatusLabel.TextSize           = 14  
+StatusLabel.Font               = Enum.Font.GothamBold  
+StatusLabel.ZIndex             = 4  
+StatusLabel.Parent             = HUDFrame  
+  
+local FPSLabel = Instance.new("TextLabel")  
+FPSLabel.Size                  = UDim2.new(1, -12, 0, 20)  
+FPSLabel.Position              = UDim2.new(0, 0, 0, 7)  
+FPSLabel.BackgroundTransparency = 1  
+FPSLabel.Text                  = "FPS: -- | Ping: --ms"  
+FPSLabel.TextColor3            = COLOR_HUD_FG  
+FPSLabel.TextStrokeTransparency = 0.5  
+FPSLabel.TextStrokeColor3      = Color3.new(0, 0, 0)  
+FPSLabel.TextSize              = 16  
+FPSLabel.TextXAlignment        = Enum.TextXAlignment.Right  
+FPSLabel.Font                  = Enum.Font.GothamBold  
+FPSLabel.ZIndex                = 4  
+FPSLabel.Parent                = HUDFrame  
+  
+local RadiusLabel = Instance.new("TextLabel")  
+RadiusLabel.Size               = UDim2.new(0, 50, 0, 16)  
+RadiusLabel.Position           = UDim2.new(0, 12, 0, 31)  
+RadiusLabel.BackgroundTransparency = 1  
+RadiusLabel.Text               = "Radius:"  
+RadiusLabel.TextColor3         = Color3.new(0.392157, 0, 0.568627)  
+RadiusLabel.TextSize           = 11  
+RadiusLabel.Font               = Enum.Font.Gotham  
+RadiusLabel.Parent             = HUDFrame  
+  
+local RadiusBox = Instance.new("TextBox")  
+RadiusBox.Size             = UDim2.new(0, 44, 0, 22)  
+RadiusBox.Position         = UDim2.new(0, 62, 0, 27)  
+RadiusBox.BackgroundColor3 = Color3.new(0.054902, 0, 0.0784314)  
+RadiusBox.BorderSizePixel  = 0  
+RadiusBox.Text             = tostring(Config.StealRadius)  
+RadiusBox.TextColor3       = COLOR_HUD_FG  
+RadiusBox.TextSize         = 11  
+RadiusBox.Font             = Enum.Font.Gotham  
+RadiusBox.ZIndex           = 4  
+RadiusBox.Parent           = HUDFrame  
+addCorner(RadiusBox, 5)  
+  
+RadiusBox.FocusLost:Connect(function()  
+    Config.StealRadius = tonumber(RadiusBox.Text) or Config.StealRadius  
+    RadiusBox.Text     = tostring(Config.StealRadius)  
+end)  
+  
+-- Progress bar (steal / action progress indicator)  
+local ProgressBg = Instance.new("Frame")  
+ProgressBg.Size             = UDim2.new(1, -18, 0, 7)  
+ProgressBg.Position         = UDim2.new(0, 9, 1, -14)  
+ProgressBg.BackgroundColor3 = Color3.new(0.054902, 0, 0.0784314)  
+ProgressBg.BorderSizePixel  = 0  
+ProgressBg.ZIndex           = 2  
+ProgressBg.Parent           = HUDFrame  
+  
+local ProgressFill = Instance.new("Frame")  
+ProgressFill.Size             = UDim2.new(0, 0, 1, 0)  
+ProgressFill.BackgroundColor3 = COLOR_HUD_FG  
+ProgressFill.BorderSizePixel  = 0  
+ProgressFill.ZIndex           = 3  
+ProgressFill.Parent           = ProgressBg  
+  
+-- â”€â”€ Billboard GUI (floats above player's head) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€  
+  
+VexinBillboard = Instance.new("BillboardGui")  
+VexinBillboard.Name        = "VexinBillboard"  
+VexinBillboard.Size        = UDim2.new(0, 240, 0, 52)  
+VexinBillboard.StudsOffset = Vector3.new(0, 3.5, 0)  
+VexinBillboard.AlwaysOnTop = true  
+  
+local BillboardBg = Instance.new("Frame")  
+BillboardBg.Size                   = UDim2.new(1, 0, 1, 0)  
+BillboardBg.BackgroundColor3       = COLOR_DARK_BG  
+BillboardBg.BackgroundTransparency = 0.35  
+BillboardBg.BorderSizePixel        = 0  
+BillboardBg.Parent                 = VexinBillboard  
+addCorner(BillboardBg, 8)  
+  
+local DiscordLabel = Instance.new("TextLabel")  
+DiscordLabel.Size                  = UDim2.new(1, -8, 0, 24)  
+DiscordLabel.Position              = UDim2.new(0, 4, 0, 2)  
+DiscordLabel.BackgroundTransparency = 1  
+DiscordLabel.Text                  = "discord.gg/zJkvsSZXvm"  
+DiscordLabel.TextColor3            = COLOR_WHITE  
+DiscordLabel.TextStrokeTransparency = 0  
+DiscordLabel.TextStrokeColor3      = COLOR_DISC_STROKE  
+DiscordLabel.TextSize              = 11  
+DiscordLabel.Font                  = Enum.Font.Gotham  
+DiscordLabel.ZIndex                = 2  
+DiscordLabel.Parent                = BillboardBg  
+  
+local SpeedBillboardLabel = Instance.new("TextLabel")  
+SpeedBillboardLabel.Size                  = UDim2.new(1, -8, 0, 18)  
+SpeedBillboardLabel.Position              = UDim2.new(0, 4, 0, 27)  
+SpeedBillboardLabel.BackgroundTransparency = 1  
+SpeedBillboardLabel.Text                  = "Speed: 0.0"  
+SpeedBillboardLabel.TextColor3            = COLOR_WHITE  
+SpeedBillboardLabel.TextStrokeTransparency = 0  
+SpeedBillboardLabel.TextStrokeColor3      = COLOR_ACCENT  
+SpeedBillboardLabel.TextSize              = 11  
+SpeedBillboardLabel.Font                  = Enum.Font.Gotham  
+SpeedBillboardLabel.ZIndex                = 2  
+SpeedBillboardLabel.Parent                = BillboardBg  
+  
+local function attachBillboard(char)  
+    if not char then return end  
+    local hrp = char:WaitForChild("HumanoidRootPart")  
+    VexinBillboard.Adornee = hrp  
+    VexinBillboard.Parent  = hrp  
+end  
+attachBillboard(Character)  
+  
+-- â”€â”€ Keyboard input â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€  
+  
+UserInputService.InputBegan:Connect(function(input, gameProcessed)  
+    if gameProcessed then return end  
+    local key = input.KeyCode  
+  
+    -- Speed mode toggle  
+    if key == Enum.KeyCode[SpeedKeyBox.Text] then  
+        State.CarryMode = not State.CarryMode  
+        ModeLabel.Text  = State.CarryMode and "Mode: Carry" or "Mode: Normal"  
+        CarryDot.BackgroundColor3 = State.CarryMode and COLOR_ACCENT or COLOR_TOGGLE_OFF  
+  
+    -- Auto Bat  
+    elseif key == Enum.KeyCode[AutoBatKeyBox.Text] then  
+        State.AutoBat = not State.AutoBat  
+        AutoBatButton.Text             = State.AutoBat and "Auto-Bat: ON" or "Auto-Bat: OFF"  
+        AutoBatButton.BackgroundColor3 = State.AutoBat and COLOR_HUD_FG  or COLOR_ACCENT  
+        AutoBatDot.BackgroundColor3    = State.AutoBat and COLOR_ACCENT   or COLOR_TOGGLE_OFF  
+  
+    -- Galaxy Mode  
+    elseif key == Enum.KeyCode[GalaxyRow.keyBtn.Text] then  
+        GalaxyRow.toggle()  
+  
+    -- Auto Left  
+    elseif key == Enum.KeyCode[AutoLeftKeyBox.Text] then  
+        AutoLeftRow.toggle()  
+  
+    -- Auto Right  
+    elseif key == Enum.KeyCode[AutoRightKeyBox.Text] then  
+        AutoRightRow.toggle()  
+    end  
+end)  
+  
+-- Jump power override  
+UserInputService.JumpRequest:Connect(function()  
+    if not Character then return end  
+    local hum = Character:FindFirstChildOfClass("Humanoid")  
+    if hum then  
+        hum.JumpPower = tonumber(HopPowerBox.Text) or 50  
+    end  
+end)  
+  
+-- â”€â”€ RenderStepped: speed hack + FPS/Ping update â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€  
+  
+local frameCount    = 0  
+local lastFPSTick   = tick()  
+  
+RunService.RenderStepped:Connect(function()  
+    -- Character safety check  
+    if not Character or not RootPart then return end  
+    local hum = Character:FindFirstChildOfClass("Humanoid")  
+    if not hum then return end  
+  
+    -- Speed override: project movement direction onto target speed  
+    local moveDir = hum.MoveDirection  
+    if moveDir.Magnitude > 0.1 then  
+        local targetSpeed = State.CarryMode  
+            and (tonumber(CarrySpeedBox.Text)  or Config.CarrySpeed)  
+            or  (tonumber(NormalSpeedBox.Text) or Config.NormalSpeed)  
+  
+        RootPart.Velocity = Vector3.new(  
+            moveDir.X * targetSpeed,  
+            RootPart.Velocity.Y,       -- preserve vertical (gravity / jump)  
+            moveDir.Z * targetSpeed  
+        )  
+    end  
+  
+    -- Billboard speed readout  
+    local xzVel = Vector3.new(RootPart.Velocity.X, 0, RootPart.Velocity.Z).Magnitude  
+    SpeedBillboardLabel.Text = string.format("Speed: %.1f", xzVel)  
+    StatusLabel.Text = string.format("Speed: %.1f", xzVel)  
+  
+    -- FPS counter (updated once per second)  
+    frameCount = frameCount + 1  
+    local now  = tick()  
+    if now - lastFPSTick >= 1 then  
+        local fps    = math.round(frameCount / (now - lastFPSTick))  
+        local pingMs = math.round(LocalPlayer:GetNetworkPing() * 1000)  
+        FPSLabel.Text  = string.format("FPS: %d;|;Ping: %dms", fps, pingMs)  
+        frameCount    = 0  
+        lastFPSTick   = now  
+    end  
+end)  
+  
+  
+-- ============================================================  
+-- // [5] INITIAL STATE // --  
+-- ============================================================  
+  
+TitleLabel.Text = "SPRING DUELS"  
+print("K7 Ultra Fast Steal (0.2s) | Q=Speed | E=AutoBat | M=Galaxy | Z=AutoLeft | C=AutoRight")  
+  
+pcall(function()  
+    StarterGui:SetCore("SendNotification", {  
+        Title    = "Vexin Slotted",  
+        Text     = "Loaded successfully!",  
+        Duration = 4,  
+    })  
+end)  
