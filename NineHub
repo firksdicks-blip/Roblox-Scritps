@@ -1,0 +1,126 @@
+https://discord.gg/H6JpjjwXzx 
+local player = game.Players.LocalPlayer
+local pGui = player:WaitForChild("PlayerGui")
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "NineHub_ExactColor"
+screenGui.Parent = pGui
+
+-- EXACT HEX COLORS FROM IMAGE
+local BG_COLOR = Color3.fromRGB(26, 23, 31)      -- The deep dark panels
+local STROKE_PURPLE = Color3.fromRGB(138, 92, 245) -- The bright purple glow
+local BORDER_DARK = Color3.fromRGB(48, 42, 58)    -- The muted border for off-toggles
+local TITLE_PURPLE = Color3.fromRGB(162, 120, 255) -- Header text color
+
+-- MAIN FRAME
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 230, 0, 370)
+MainFrame.Position = UDim2.new(0.5, -115, 0.5, -185)
+MainFrame.BackgroundColor3 = Color3.fromRGB(15, 13, 18) -- Darker base
+MainFrame.BackgroundTransparency = 0.15
+MainFrame.BorderSizePixel = 0
+MainFrame.Parent = screenGui
+
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 14)
+MainCorner.Parent = MainFrame
+
+-- The thick outer purple border
+local MainStroke = Instance.new("UIStroke")
+MainStroke.Thickness = 3.5
+MainStroke.Color = Color3.fromRGB(55, 45, 75) -- Muted purple outer ring
+MainStroke.Parent = MainFrame
+
+-- TITLE: Nine Hub Duels
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 45)
+Title.BackgroundTransparency = 1
+Title.Text = "Nine Hub Duels"
+Title.TextColor3 = TITLE_PURPLE
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 19
+Title.Parent = MainFrame
+
+-- SUBTITLE: SETTINGS
+local Settings = Instance.new("TextLabel")
+Settings.Size = UDim2.new(1, 0, 0, 20)
+Settings.Position = UDim2.new(0, 0, 0, 40)
+Settings.BackgroundTransparency = 1
+Settings.Text = "SETTINGS"
+Settings.TextColor3 = STROKE_PURPLE
+Settings.TextTransparency = 0.5
+Settings.Font = Enum.Font.GothamBold
+Settings.TextSize = 10
+Settings.Parent = MainFrame
+
+-- BUTTON LIST
+local List = Instance.new("ScrollingFrame")
+List.Size = UDim2.new(0.9, 0, 0.75, 0)
+List.Position = UDim2.new(0.05, 0, 0.18, 0)
+List.BackgroundTransparency = 1
+List.ScrollBarThickness = 0
+List.Parent = MainFrame
+
+local Layout = Instance.new("UIListLayout")
+Layout.Padding = UDim.new(0, 7)
+Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+Layout.Parent = List
+
+local function AddButton(name, active)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, 0, 0, 38)
+    btn.BackgroundColor3 = BG_COLOR
+    btn.Text = "     " .. name
+    btn.TextColor3 = Color3.fromRGB(240, 240, 240)
+    btn.Font = Enum.Font.GothamSemibold
+    btn.TextSize = 11
+    btn.TextXAlignment = Enum.TextXAlignment.Left
+    btn.AutoButtonColor = true
+    btn.Parent = List
+    
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 10)
+    
+    local s = Instance.new("UIStroke")
+    s.Thickness = 2
+    s.Color = active and STROKE_PURPLE or BORDER_DARK
+    s.Parent = btn
+
+    -- The Dot (left side)
+    local dot = Instance.new("Frame")
+    dot.Size = UDim2.new(0, 11, 0, 11)
+    dot.Position = UDim2.new(0, 10, 0.5, -5.5)
+    dot.BackgroundColor3 = active and STROKE_PURPLE or Color3.fromRGB(45, 45, 55)
+    dot.Parent = btn
+    Instance.new("UICorner", dot).CornerRadius = UDim.new(1, 0)
+    
+    -- The Gear (right side)
+    local gear = Instance.new("TextLabel")
+    gear.Size = UDim2.new(0, 30, 1, 0)
+    gear.Position = UDim2.new(1, -35, 0, 0)
+    gear.Text = "âš™"
+    gear.TextColor3 = Color3.fromRGB(110, 110, 110)
+    gear.BackgroundTransparency = 1
+    gear.TextSize = 14
+    gear.Parent = btn
+end
+
+-- LOADING BUTTONS
+AddButton("AUTO CONFIG", false)
+AddButton("Drop Keybind", false)
+AddButton("TP Down Keybind", false)
+AddButton("TP Up Keybind", false)
+AddButton("Speed Boost", true)
+AddButton("Auto Play Float", true)
+AddButton("Auto Play", true)
+
+-- FOOTER: READY
+local Ready = Instance.new("TextLabel")
+Ready.Size = UDim2.new(0, 100, 0, 20)
+Ready.Position = UDim2.new(0.08, 0, 0.94, 0)
+Ready.BackgroundTransparency = 1
+Ready.Text = "READY"
+Ready.TextColor3 = Color3.fromRGB(255, 255, 255)
+Ready.Font = Enum.Font.GothamBold
+Ready.TextSize = 10
+Ready.TextXAlignment = Enum.TextXAlignment.Left
+Ready.Parent = MainFrame
